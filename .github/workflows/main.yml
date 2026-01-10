@@ -19,7 +19,7 @@ jobs:
 
     - name: Installa dipendenze
       run: |
-        pip install pyinstaller customtkinter
+        pip install pyinstaller customtkinter Pillow
 
     - name: Genera Eseguibile
       run: |
