@@ -23,7 +23,7 @@ jobs:
 
     - name: Genera Eseguibile
       run: |
-        pyinstaller --noconsole --onefile --name "VTI_Toolkit" vti_app.py
+        pyinstaller --noconsole --onefile --icon="iconaVTI.ico" --name "VTI" vti_app.py
 
     - name: Archivia Risultato
       uses: actions/upload-artifact@v4
