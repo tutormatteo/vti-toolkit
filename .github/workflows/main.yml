@@ -1,0 +1,32 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Installa dipendenze
+      run: |
+        pip install pyinstaller customtkinter
+
+    - name: Genera Eseguibile
+      run: |
+        pyinstaller --noconsole --onefile --name "VTI_Toolkit" vti_app.py
+
+    - name: Archivia Risultato
+      uses: actions/upload-artifact@v4
+      with:
+        name: VTI-Windows-Exe
+        path: dist/VTI_Toolkit.exe
