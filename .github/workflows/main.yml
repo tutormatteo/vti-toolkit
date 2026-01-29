@@ -19,11 +19,19 @@ jobs:
 
     - name: Installa dipendenze
       run: |
-        pip install pyinstaller customtkinter Pillow
+        pip install pyinstaller customtkinter Pillow packaging
 
     - name: Genera Eseguibile
+      shell: pwsh
       run: |
-        pyinstaller --noconsole --onefile --icon="iconaVTI.ico" --name "VTI" vti_app.py
+        # Recupera il percorso della libreria customtkinter dinamicamente
+        $ctk_path = python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))"
+        
+        pyinstaller --noconsole --onefile `
+        --add-data "${ctk_path};customtkinter/" `
+        --icon="iconaVTI.ico" `
+        --name "VTI" `
+        vti_app.py
 
     - name: Archivia Risultato
       uses: actions/upload-artifact@v4
