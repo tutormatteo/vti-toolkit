@@ -61,72 +61,77 @@ class VTICore:
                 db[m][argomento].append(f)
         return db
 
-    def genera_eserciziario(self):
-        """Genera i file .tex per l'eserciziario completo."""
-        output_dir = self.base_path / "eserciziario" #
+   def genera_eserciziario(self, materia_selezionata=None):
+        """Genera i file .tex per l'eserciziario (singola materia e/o completo)."""
+        output_dir = self.base_path / "eserciziario"
         output_dir.mkdir(exist_ok=True)
         
         db = self.get_struttura_quesiti()
-        soluzioni_globali = {m: [] for m in self.materie}
-        contatore_totale = 1
+        materie_da_processare = [materia_selezionata] if materia_selezionata else self.materie
+        
+        soluzioni_globali = [] # Lista per il file completo
+        contatore_globale = 1
 
-        for materia in self.materie:
-            if not db[materia]: continue
+        for materia in materie_da_processare:
+            if not db.get(materia): continue
+            
+            soluzioni_materia = [] 
+            contatore_materia = 1 
             path_out = output_dir / f"quesiti_{materia.lower()}.tex"
+            path_sol = output_dir / f"soluzioni_{materia.lower()}.tex" 
             
             with open(path_out, 'w', encoding='utf-8') as f_out:
-                # Ordina gli argomenti alfabeticamente
                 for argomento in sorted(db[materia].keys()):
-                    f_out.write(f"\\subsection{{{self.fix_latex(argomento)}}}\n") #
-                    f_out.write("\\begin{multicols}{2}\n") #
-                    f_out.write("\\begin{itemize}[leftmargin=*]\n") #
+                    f_out.write(f"\\subsection{{{self.fix_latex(argomento)}}}\n")
+                    f_out.write("\\begin{multicols}{2}\n\\begin{itemize}[leftmargin=*]\n")
                     
-                    # Ordina i quesiti per argomento in modo naturale
                     files_arg = sorted(db[materia][argomento], key=lambda x: self.natural_sort_key(x.name))
-                    
                     for f_path in files_arg:
                         dati = self.processa_file(f_path)
                         if dati:
-                            f_out.write(f"{dati['testo']}\n\n") #
-                            
-                            # Estrazione nome quesito pulito
+                            f_out.write(f"{dati['testo']}\n\n")
                             parti = [p.strip() for p in f_path.stem.split(" - ")]
                             nome_quesito = re.sub(r"\s*#\d+", "", parti[2]) if len(parti) > 2 else f_path.stem
                             
-                            soluzioni_globali[materia].append({
-                                "id": contatore_totale,
+                            item = {
+                                "id_mat": contatore_materia,
+                                "id_glob": contatore_globale,
+                                "materia": materia,
                                 "arg": argomento,
                                 "nome": nome_quesito,
                                 "risp": dati['risp']
-                            })
-                            contatore_totale += 1
+                            }
+                            soluzioni_materia.append(item)
+                            soluzioni_globali.append(item)
+                            contatore_materia += 1
+                            contatore_globale += 1
                             
-                    f_out.write("\\end{itemize}\n") #
-                    f_out.write("\\end{multicols}\n") #
-                    f_out.write("\\newpage\n\n") #
+                    f_out.write("\\end{itemize}\n\\end{multicols}\n\\newpage\n\n")
 
-        # Generazione soluzioni.tex con tabella a larghezza ottimizzata
-        with open(output_dir / "soluzioni.tex", 'w', encoding='utf-8') as f_sol:
-            for materia in self.materie:
-                if not soluzioni_globali[materia]: continue
-                
-                f_sol.write(f"\\section{{Soluzioni - {materia}}}\n") #
-                # N. (1cm) | Argomento (4cm) | Nome Quesito (8.5cm) | Risp. (1cm)
-                f_sol.write("\\begin{longtable}{|p{1cm}|p{4cm}|p{8.5cm}|p{1cm}|}\n")
-                f_sol.write("\\hline \n")
-                f_sol.write("\\rowcolor{headercolor} \\textbf{N.} & \\textbf{Argomento} & \\textbf{Nome Quesito} & \\textbf{Risp.} \\\\ \\hline\n")
-                f_sol.write("\\endfirsthead\n")
-                f_sol.write("\\hline \n")
-                f_sol.write("\\rowcolor{headercolor} \\textbf{N.} & \\textbf{Argomento} & \\textbf{Nome Quesito} & \\textbf{Risp.} \\\\ \\hline\n")
-                f_sol.write("\\endhead\n")
-                
-                for s in soluzioni_globali[materia]:
-                    arg_safe = self.fix_latex(s['arg'])
-                    nome_safe = self.fix_latex(s['nome'])
-                    f_sol.write(f"{s['id']} & {arg_safe} & {nome_safe} & \\centering \\textbf{{{s['risp']}}} \\tabularnewline \\hline\n") #
-                
-                f_sol.write("\\end{longtable}\n\\newpage\n")
+            # Scrittura file soluzioni per materia (es. soluzioni_matematica.tex)
+            self._scrivi_tabella_latex(path_sol, f"Soluzioni - {materia}", soluzioni_materia, "id_mat")
+
+        # Se l'utente ha scelto "Tutte", genera anche il file completo
+        if not materia_selezionata:
+            path_completo = output_dir / "soluzioni_completo.tex"
+            self._scrivi_tabella_latex(path_completo, "Soluzioni Complete (Tutte le materie)", soluzioni_globali, "id_glob")
+            
         return True
+
+    def _scrivi_tabella_latex(self, path, titolo, dati, id_key):
+        """Metodo di supporto per non ripetere il codice delle tabelle LaTeX."""
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(f"\\section{{{titolo}}}\n")
+            f.write("\\begin{longtable}{|p{1cm}|p{4cm}|p{8.5cm}|p{1cm}|}\n\\hline \n")
+            f.write("\\rowcolor{headercolor} \\textbf{N.} & \\textbf{Argomento} & \\textbf{Nome Quesito} & \\textbf{Risp.} \\\\ \\hline\n")
+            f.write("\\endfirsthead\n\\hline \n\\rowcolor{headercolor} \\textbf{N.} & \\textbf{Argomento} & \\textbf{Nome Quesito} & \\textbf{Risp.} \\\\ \\hline\n\\endhead\n")
+            
+            for s in dati:
+                arg_safe = self.fix_latex(s['arg'])
+                nome_safe = self.fix_latex(s['nome'])
+                f.write(f"{s[id_key]} & {arg_safe} & {nome_safe} & \\centering \\textbf{{{s['risp']}}} \\tabularnewline \\hline\n")
+            
+            f.write("\\end{longtable}\n\\newpage\n")
 
 # --- FINESTRE UI ---
 
@@ -139,6 +144,10 @@ class TestConfigWindow(ctk.CTkToplevel):
         self.db = core.get_struttura_quesiti()
         self.entries = {}
         self.setup_ui()
+        ctk.CTkLabel(self, text="Seleziona ambito generazione:").pack(pady=(15, 0))
+        self.combo_materia = ctk.CTkComboBox(self, values=["Tutte", "Matematica", "Logica", "Scienze"])
+        self.combo_materia.set("Tutte")
+        self.combo_materia.pack(pady=5)
 
     def setup_ui(self):
         header = ctk.CTkFrame(self)
@@ -278,9 +287,13 @@ class App(ctk.CTk):
 
     def run_eser(self):
         core = VTICore(self.repo_path)
+        scelta = self.combo_materia.get()
+        materia_target = None if scelta == "Tutte" else scelta #
+        
         try:
-            if core.genera_eserciziario():
-                messagebox.showinfo("Successo", "Eserciziario generato correttamente in 'eserciziario'!")
+            if core.genera_eserciziario(materia_target):
+                msg = f"Generazione ({scelta}) completata con successo!"
+                messagebox.showinfo("Successo", msg)
         except Exception as e:
             messagebox.showerror("Errore", f"Si è verificato un errore: {e}")
 
