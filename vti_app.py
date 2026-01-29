@@ -191,14 +191,39 @@ class TestConfigWindow(ctk.CTkToplevel):
 
         if global_count == 1: return messagebox.showwarning("Errore", "Seleziona almeno un quesito!")
         
+        # Creazione della cartella 'test' se non esiste
         output_dir = self.core.base_path / "test"
         output_dir.mkdir(exist_ok=True)
+        
+        # Definizione del percorso del file
         out_path = output_dir / f"Test_{titolo.replace(' ', '_')}.tex"
 
-        # Logica scrittura file .tex omessa per brevità, rimane identica alla tua versione
-        # ... (Codice LaTeX del test)
-        messagebox.showinfo("Successo", f"Test generato!")
-        self.destroy()
+        # --- LOGICA DI SCRITTURA EFFETTIVA ---
+        try:
+            with open(out_path, 'w', encoding='utf-8') as f:
+                # Intestazione LaTeX
+                f.write("\\documentclass[12pt]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{multicol}\n")
+                f.write("\\usepackage[margin=2cm]{geometry}\n\\begin{document}\n")
+                f.write(f"\\section*{{{self.core.fix_latex(titolo)}}} \n")
+                f.write(f"\\hfill Data: {self.core.fix_latex(data_t)}\n\n")
+
+                # Scrittura dei quesiti
+                contatore = 1
+                for mat in self.core.materie:
+                    if quesiti_scelti[mat]:
+                        f.write(f"\\subsection*{{{mat}}}\n")
+                        for q_testo in quesiti_scelti[mat]:
+                            f.write(f"\\textbf{{{contatore}.}} {q_testo}\n\n")
+                            contatore += 1
+                
+                f.write("\\end{document}")
+            
+            # Solo ora il file esiste sul disco
+            messagebox.showinfo("Successo", f"Test generato correttamente in:\n{out_path}")
+            self.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Errore di Scrittura", f"Impossibile creare il file: {e}")
 
 # --- APP PRINCIPALE ---
 
